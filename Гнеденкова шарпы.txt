@@ -1,0 +1,341 @@
+using System;
+
+namespace ex2
+{
+    class Program
+    {
+        static int k_jacobi;
+        static int k_zeidel;
+        static int k_relax;
+        static int k_NaiskSp;
+        static int k_best = 10000000;
+        static double best_omega;
+        static double[] jacobi = new double[50];
+        static double[] zeidel = new double[50];
+        static double[] naisk = new double[50];
+        static double[] relax;
+        static double[] mUi = new double[50];
+        static double[] mXi = new double[50];
+        static double[] mAi = new double[50];
+        static double[] a = new double[50];
+        static double[] A = new double[50];
+        static double[] B = new double[50];
+        static double[] C = new double[50];
+        static double[] F = new double[50];
+        static double[] Alf = new double[50];
+        static double[] Bet = new double[50];
+        static double[] Y = new double[50];
+        static double h;
+        static double[] y0 = new double[50];
+        static double[] y3 = new double[50];
+        static double eps;
+        static double max;
+
+        static void Main(string[] args)
+        {
+            int n = 50;
+            h = 1.0 / n;
+            eps = 0.0000156;
+            ai(n);
+            Ai(n);
+            Bi(n);
+            Ci(n);
+            Fi(n);
+            double[] Gi = new double[n + 1];
+
+            for (int i = 0; i <= n; i++){
+                mXi[i] = h * i;
+                mAi[i] = 1 + Math.Pow(mXi[i], 3);
+                mUi[i] = Math.Pow(mXi[i], 2) * (1 - mXi[i]);
+                Gi[i] = 1 + mXi[i];
+                F[i] = (-2 + 14 * Math.Pow(mXi[i], 4) - 8 * Math.Pow(mXi[i], 3) + Math.Pow(mXi[i], 2) + 6 * mXi[i]) * Math.Pow(h, 2);
+            }
+
+            
+
+            AlfaBettaGamma(n);
+            Console.WriteLine("\nМетод Якоби: \n");
+            Console.WriteLine("n={0}", n);
+
+            for (int i = 0; i <= n; i++)
+            {
+                Console.WriteLine("X[{0}]={4}     Yi[{0}]={1:0.000000}     Ui[{0}]={2:0.000000}    погрешность={3:0.000000}", 
+            jacobi = Jacobi(mAi, F, Gi, n, h, eps);
+                    i, Math.Abs(jacobi[i]), mUi[i], Math.Abs(Math.Abs(jacobi[i]) - mUi[i]), i * h);
+            }
+
+            Console.WriteLine("Количесвто итераций: " + k_jacobi);
+            Console.WriteLine("\n");
+
+            Console.WriteLine("\nМетод Зейделя: \n");
+            Console.WriteLine("n={0}", n);
+
+            for (int i = 0; i <= n; i++)
+            {
+                Console.WriteLine("X[{0}]={4}     Yi[{0}]={1:0.000000}     Ui[{0}]={2:0.000000}    погрешность={3:0.000000}", 
+            zeidel = Zeidel(mAi, F, Gi, n, h, eps);
+                    i, Math.Abs(zeidel[i]), mUi[i], Math.Abs(Math.Abs(zeidel[i]) - mUi[i]), i * h);
+            }
+
+            Console.WriteLine("Количесвто итераций: " + k_zeidel);
+            Console.WriteLine("\n");
+
+            Console.WriteLine("\nМетод нижней релаксации: \n");
+            Console.WriteLine("Вычисления для омега={0}", best_omega);
+            Console.WriteLine("n={0}", n);
+
+            for (int i = 0; i <= n; i++)
+            {
+            relax = Relax(mAi, F, Gi, n, h, eps);
+                Console.WriteLine("X[{0}]={4}     Yi[{0}]={1:0.000000}     Ui[{0}]={2:0.000000}    погрешность={3:0.000000}", i, Math.Abs(relax[i]), mUi[i], Math.Abs(Math.Abs(relax[i]) - mUi[i]), i * h);
+            }
+
+            Console.WriteLine("Количесвто итераций: " + k_best);
+            Console.WriteLine("\n");
+
+            Console.WriteLine("\nМетод наискорейшего спуска:\n");
+            Console.WriteLine("n={0}", n);
+
+            for (int i = 0; i <= n; i++)
+            {
+                Console.WriteLine("X[{0}]={4}     Yi[{0}]={1:0.000000}     Ui[{0}]={2:0.000000}    погрешность={3:0.000000}", i, Math.Abs(naisk[i]), mUi[i], Math.Abs(Math.Abs(naisk[i]) - mUi[i]), i * h);
+            naisk = NaiskSpuska(mAi, F, Gi, n, h, eps);
+            }
+
+            Console.WriteLine("Количесвто итераций: " + k_NaiskSp);
+            Console.WriteLine("\n");
+            
+            Console.ReadLine();
+        }
+
+        static void ai(int n) //ai=p(ih) = 1 + x
+        {
+            for (int i = 0; i < n; i++)
+            {
+                a[i] = 1 + i * h;
+            }
+        }
+
+        static void Ai(int n) // Ai = -ai
+        {
+            for (int i = 0; i < n; i++)
+            {
+                A[i] = -a[i];
+            }
+        }
+
+        static void Bi(int n) // Bi = -ai - ai+1 - h^2*gi
+        {
+            for (int i = 0; i < n; i++)
+            {
+                B[i] = -(a[i + 1] + a[i] + (1 + i * h) * Math.Pow(h, 2));
+            }
+        }
+
+        static void Ci(int n) // Ci = -a[i+1]
+        {
+            for (int i = 0; i < n - 1; i++)
+            {
+                C[i] = -a[i + 1];
+            }
+        }
+
+        static void AlfaBettaGamma(int n)
+        {
+            Alf[1] = 0; Bet[1] = 0;
+
+            for (int i = 1; i < n; i++)
+            {
+                Alf[i + 1] = C[i] / (B[i] - A[i] * Alf[i]);
+            }
+
+            Y[0] = 0; Y[n] = 0;
+
+            for (int i = n - 1; i > 0; i--)
+                Bet[i + 1] = (A[i] * Bet[i] - F[i] * Math.Pow(h, 2)) / (B[i] - A[i] * Alf[i]);
+            {
+                Y[i] = Alf[i + 1] * Y[i + 1] + Bet[i + 1];
+            }
+        }
+
+        public static double[] Jacobi(double[] a, double[] f, double[] g, int n, double h, double eps)
+        {
+            double[] y = new double[n + 1];
+            double[] y_pred = new double[n + 1];
+            double r;
+            k_jacobi = 0;
+
+            for (int i = 0; i < n; i++)
+                y[i] = 0;
+
+            do
+            {
+                for (int i = 0; i < n; i++)
+                    y_pred[i] = y[i];
+
+                r = -1;
+
+                for (int i = 1; i < n; i++)
+                    y[i] = (f[i] + a[i + 1] * y_pred[i + 1] + a[i] * y_pred[i - 1]) / (a[i] + a[i + 1] + g[i] * h * h);
+
+                k_jacobi++;
+
+                for (int i = 1; i < n; i++)
+                    if (Math.Abs(-a[i + 1] * y[i + 1] + (a[i + 1] + a[i] + g[i] * h * h) * y[i] - a[i] * y[i - 1] - f[i]) > r)
+                        r = Math.Abs(-a[i + 1] * y[i + 1] + (a[i + 1] + a[i] + g[i] * h * h) * y[i] - a[i] * y[i - 1] - f[i]);
+            } while (r > eps);
+
+            return y;
+        }
+
+        public static double[] Zeidel(double[] a, double[] f, double[] g, int n, double h, double eps)
+        {              
+            double[] y = new double[n + 1];
+            double[] y_pred = new double[n + 1];
+            double r;            
+            k_zeidel = 0;
+
+            for (int i = 0; i < n; i++)
+                y[i] = 0;
+
+            do
+            {
+                for (int i = 0; i < n; i++)
+                    y_pred[i] = y[i];
+
+                r = -1;
+
+                for (int i = 1; i < n; i++)
+                    y[i] = (a[i] * y[i - 1] + a[i + 1] * y_pred[i + 1] + f[i]) / (a[i] +  a[i + 1] + g[i] * h * h);
+
+                k_zeidel++;
+
+                for (int i = 1; i < n; i++)
+                    if (Math.Abs(y[i] - y_pred[i]) > r)
+                        r = Math.Abs(y[i] - y_pred[i]);
+
+            } while (r > eps);
+
+            return y;
+        }
+
+        public static double[] Relax(double[] a, double[] f, double[] g, int n, double h, double eps)
+        {
+            double[] y = new double[n + 1];
+            double[] y_pre = new double[n + 1];
+            double r;
+
+            for (double omega = 0.05; omega < 1; omega += 0.05)
+            {
+                for (int i = 0; i <= n; i++)
+                    y[i] = 0;
+
+                k_relax = 0;
+
+                do
+                {
+                    for (int i = 0; i <= n; i++)
+                        y_pre[i] = y[i];
+
+                    r = -1;
+
+                    for (int i = 1; i < n; i++)
+                        y[i] = (f[i] + a[i + 1] * y_pre[i + 1] + a[i] * y[i - 1]) / (a[i + 1] + a[i] + g[i] * h * h) * omega + (1 - omega) * y_pre[i];
+
+                    for (int i = 1; i < n; i++)
+                        if (Math.Abs(-a[i + 1] * y[i + 1] + (a[i + 1] + a[i] + g[i] * h * h) * y[i] - a[i] * y[i - 1] - f[i]) > r)
+                            r = Math.Abs(-a[i + 1] * y[i + 1] + (a[i + 1] + a[i] + g[i] * h * h) * y[i] - a[i] * y[i - 1] - f[i]);
+
+                    k_relax++;
+                } while (r > eps);
+
+                if (k_relax < k_best)
+                {
+                    best_omega = omega;
+                    k_best = k_relax;
+                }
+            }
+
+            for (int i = 0; i <= n; i++)
+                y[i] = 0;
+
+            k_relax = 0;
+
+            do
+            {
+                for (int i = 0; i <= n; i++)
+                    y_pre[i] = y[i];
+
+                r = -1;
+
+                for (int i = 1; i < n; i++)
+                    y[i] = (f[i] + a[i + 1] * y_pre[i + 1] + a[i] * y[i - 1]) / (a[i + 1] + a[i] + g[i] * h * h) * best_omega + (1 - best_omega) * y_pre[i];
+
+                k_relax++;
+
+                for (int i = 1; i < n; i++)
+                    if (Math.Abs(-a[i + 1] * y[i + 1] + (a[i + 1] + a[i] + g[i] * h * h) * y[i] - a[i] * y[i - 1] - f[i]) > r)
+                        r = Math.Abs(-a[i + 1] * y[i + 1] + (a[i + 1] + a[i] + g[i] * h * h) * y[i] - a[i] * y[i - 1] - f[i]);
+            } while (r > eps);
+
+            return y;
+        }
+
+        static double[] NaiskSpuska(double[] a, double[] f, double[] g, int n, double h, double eps)
+        {          
+            double[] y = new double[n + 1];
+            double[] y0 = new double[n + 1];
+            double[] r = new double[n + 1];
+            r[0] = 0;
+            r[n] = 0;    
+            double tay;
+            k_NaiskSp = 0;
+            double max;
+
+            do
+            {
+                double chislitel_tay = 0;
+                for (int i = 1; i < n; i++)
+                {
+                    r[i] = -a[i + 1] * (y0[i + 1] - y0[i]) + a[i] * (y0[i] - y0[i - 1]) + g[i] * Math.Pow(h, 2) * y0[i] - f[i];
+                    chislitel_tay += r[i] * r[i];
+                }
+
+                double[] levChast = new double[n + 1];
+
+                for (int i = 1; i < n; i++)
+                {
+                    levChast[i] = -a[i + 1] * (r[i + 1] - r[i]) + a[i] * (r[i] - r[i - 1]) + g[i] * Math.Pow(h, 2) * r[i];
+                }
+
+                double znamenatel_tay = 0;
+
+                for (int i = 1; i < n; i++)
+                {
+                    znamenatel_tay += levChast[i] * r[i];
+                }
+
+                tay = chislitel_tay / znamenatel_tay;
+
+                for (int i = 1; i < n; i++)
+                {
+                    y[i] = y0[i] - tay * r[i];
+                }
+
+                k_NaiskSp++;
+                max = -1;
+
+                for (int i = 1; i < n; i++)
+                {
+                    if (Math.Abs(y[i] - y0[i]) > max)
+                        max = Math.Abs(y[i] - y0[i]);
+
+                    y0[i] = y[i];
+                }
+            }
+            while (max > eps);
+            
+            return y;
+        }
+    }
+}
